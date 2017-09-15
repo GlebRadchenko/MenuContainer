@@ -9,6 +9,7 @@
 import Foundation
 import UIKit
 
+
 public extension NSLayoutConstraint {
     static func constraints(forBinding view: UIView, to parentView: UIView) -> [NSLayoutConstraint] {
         return [leading, trailing, top, bottom].map { return $0(parentView, view, 0.0) }

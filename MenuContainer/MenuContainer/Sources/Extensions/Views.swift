@@ -10,6 +10,19 @@ import Foundation
 import UIKit
 
 extension UIView {
+    func bind(_ view: UIView) {
+        if !subviews.contains(view) {
+            addSubview(view)
+        }
+        
+        [view.leadingAnchor.constraint(equalTo: leadingAnchor),
+         view.trailingAnchor.constraint(equalTo: trailingAnchor),
+         view.topAnchor.constraint(equalTo: topAnchor),
+         view.bottomAnchor.constraint(equalTo: bottomAnchor)].forEach { $0.isActive = true }
+    }
+}
+
+extension UIView {
     var leading: NSLayoutConstraint? {
         guard let superview = superview else { return nil }
         for constraint in superview.constraints {

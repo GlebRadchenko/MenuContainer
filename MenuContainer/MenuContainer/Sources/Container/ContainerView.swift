@@ -27,9 +27,7 @@ class ContainerView: UIView {
         vc.view.translatesAutoresizingMaskIntoConstraints = false
         addSubview(vc.view)
         
-        let constraints = NSLayoutConstraint.constraints(forBinding: vc.view, to: self)
-        NSLayoutConstraint.activate(constraints)
-        layoutIfNeeded()
+        bind(vc.view)
     }
     
     func clear() {

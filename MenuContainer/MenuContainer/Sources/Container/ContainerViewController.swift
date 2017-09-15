@@ -57,18 +57,11 @@ open class ContainerViewController: UIViewController {
                 UIView.animate(withDuration: 0.25) { [weak self] in
                     self?.maskView.alpha = 0
                 }
-                break
             case .opened:
-                centralContainer.addSubview(maskView)
-                maskView.leftAnchor.constraint(equalTo: centralContainer.leftAnchor, constant: 0).isActive = true
-                maskView.rightAnchor.constraint(equalTo: centralContainer.rightAnchor, constant: 0).isActive = true
-                maskView.topAnchor.constraint(equalTo: centralContainer.topAnchor, constant: 0).isActive = true
-                maskView.bottomAnchor.constraint(equalTo: centralContainer.bottomAnchor, constant: 0).isActive = true
-                centralContainer.layoutSubviews()
+                centralContainer.bind(maskView)
                 UIView.animate(withDuration: 0.25) { [weak self] in
                     self?.maskView.alpha = 0.05
                 }
-                break
             default:
                 break
             }
@@ -82,9 +75,18 @@ open class ContainerViewController: UIViewController {
     }
     
     override open var preferredStatusBarStyle: UIStatusBarStyle {
+        if isLeftVisible, let leftVC = leftContainer.viewController {
+            return leftVC.preferredStatusBarStyle
+        }
+        
+        if isRightVisible, let rightVC = rightContainer.viewController {
+            return rightVC.preferredStatusBarStyle
+        }
+        
         if let vc = centralContainer.viewController {
             return vc.preferredStatusBarStyle
         }
+        
         return .default
     }
     
@@ -96,41 +98,41 @@ open class ContainerViewController: UIViewController {
             $0.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview($0)
         }
+        
         centralContainer.layer.shadowOpacity = shadowOpacity
         
-        bindCentralContainer()
-        bindLeftContainer()
-        bindRightContainer()
+        bindContainers()
         
         leftContainer.hide()
         rightContainer.hide()
-        
-        view.layoutIfNeeded()
         
         addGestureRecognizers()
         processSeguesIfNeeded()
     }
     
     //MARK: - Layouting
+    private func bindContainers() {
+        bindCentralContainer()
+        bindLeftContainer()
+        bindRightContainer()
+    }
+    
     private func bindLeftContainer() {
-        let constraints = [NSLayoutConstraint.top(forBinding: view, to: leftContainer),
-                           NSLayoutConstraint.bottom(forBinding: view, to: leftContainer),
-                           NSLayoutConstraint.leading(forBinding: view, to: leftContainer),
-                           NSLayoutConstraint.width(for: leftContainer, constant: ContainerViewSettings.sidePanelWidth)]
-        NSLayoutConstraint.activate(constraints)
+        [leftContainer.topAnchor.constraint(equalTo: view.topAnchor),
+         leftContainer.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+         leftContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+         leftContainer.widthAnchor.constraint(equalToConstant: ContainerViewSettings.sidePanelWidth)].forEach { $0.isActive = true }
     }
     
     private func bindRightContainer() {
-        let constraints = [NSLayoutConstraint.top(forBinding: view, to: rightContainer),
-                           NSLayoutConstraint.bottom(forBinding: view, to: rightContainer),
-                           NSLayoutConstraint.trailing(forBinding: view, to: rightContainer),
-                           NSLayoutConstraint.width(for: rightContainer, constant: ContainerViewSettings.sidePanelWidth)]
-        NSLayoutConstraint.activate(constraints)
+        [rightContainer.topAnchor.constraint(equalTo: view.topAnchor),
+         rightContainer.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+         rightContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+         rightContainer.widthAnchor.constraint(equalToConstant: ContainerViewSettings.sidePanelWidth)].forEach { $0.isActive = true }
     }
     
     private func bindCentralContainer() {
-        let constraints = NSLayoutConstraint.constraints(forBinding: view, to: centralContainer)
-        NSLayoutConstraint.activate(constraints)
+        view.bind(centralContainer)
     }
     
     //MARK: - Segues
@@ -142,7 +144,7 @@ open class ContainerViewController: UIViewController {
             wSelf.performSegue(withIdentifier: ContainerSegueIdentifier.right.rawValue, sender: wSelf)
         }
     }
-
+    
     //MARK: - Gesture Recognizers
     open func addGestureRecognizers() {
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(recognizer:)))
@@ -174,7 +176,6 @@ open class ContainerViewController: UIViewController {
                 break
             }
             panelsState = .sliding
-            break
         case .changed:
             var xTranslation = recognizer.translation(in: view).x
             if abs(xTranslation) > ContainerViewSettings.sidePanelWidth {
@@ -182,26 +183,22 @@ open class ContainerViewController: UIViewController {
                     ? -ContainerViewSettings.sidePanelWidth
                     : ContainerViewSettings.sidePanelWidth
             }
-            slidePanel(with: xTranslation,
-                       velocity: recognizer.velocity(in: view).x)
+            
+            slidePanel(with: xTranslation, velocity: recognizer.velocity(in: view).x)
             self.xTranslation = xTranslation
-            break
         default:
             completeSliding(with: xTranslation)
-            break
         }
     }
     
     @objc func handleTap(recognizer: UITapGestureRecognizer) {
         switch panelsState {
-        case .allClosed:
-            return
         case .opened:
             togglePanel(open: false) { [weak self] in
                 self?.panelsState = .allClosed
             }
         default:
-            break
+            return
         }
     }
     
@@ -305,21 +302,13 @@ open class ContainerViewController: UIViewController {
     
     // MARK: - Public methods
     public var isLeftVisible: Bool {
-        set {
-            toggleLeft(animated: false, visible: newValue, completion: nil)
-        }
-        get {
-            return panelsState == .opened && leftContainer.active
-        }
+        set { toggleLeft(animated: false, visible: newValue, completion: nil) }
+        get { return panelsState == .opened && leftContainer.active }
     }
     
     public var isRightVisible: Bool {
-        set {
-            toggleRight(animated: false, visible: newValue, completion: nil)
-        }
-        get {
-            return panelsState == .opened && rightContainer.active
-        }
+        set { toggleRight(animated: false, visible: newValue, completion: nil) }
+        get { return panelsState == .opened && rightContainer.active }
     }
     
     open func toggleLeft(animated: Bool = true, completion: (() -> Void)?) {
@@ -358,6 +347,7 @@ open class ContainerViewController: UIViewController {
             setRight(controller: controller)
             break
         }
+        
         addChildViewController(controller)
         controller.didMove(toParentViewController: self)
     }
@@ -388,3 +378,4 @@ open class ContainerViewController: UIViewController {
     }
     //etc
 }
+
